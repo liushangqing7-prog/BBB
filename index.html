@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>多模型统一调用控制台</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #131a2f;
+      --panel-2: #1b2440;
+      --text: #e8ecff;
+      --muted: #a9b4d0;
+      --primary: #7c8cff;
+      --ok: #31c48d;
+      --danger: #ff6b6b;
+      --border: #2f3a64;
+      --shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 10%, #1a2450 0%, rgba(26, 36, 80, 0) 45%),
+        radial-gradient(circle at 90% 15%, #1f3a68 0%, rgba(31, 58, 104, 0) 35%),
+        var(--bg);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .container {
+      width: min(1200px, 94vw);
+      margin: 28px auto 40px;
+    }
+
+    .hero {
+      background: linear-gradient(130deg, rgba(124,140,255,.2), rgba(49,196,141,.08));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 22px;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: .2px;
+    }
+
+    .hero p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      max-width: 900px;
+      font-size: 14px;
+    }
+
+    .global-input {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(260px, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 640px;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .row {
+      display: grid;
+      gap: 8px;
+    }
+
+    .two-cols {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 3px;
+      display: block;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 10px;
+      font-size: 13px;
+      padding: 9px 10px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      line-height: 1.45;
+    }
+
+    .output {
+      min-height: 130px;
+      background: #0f162d;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 9px 12px;
+      color: #fff;
+      background: #5063ff;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    button.secondary {
+      background: #2b385f;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      font-size: 12px;
+      color: var(--muted);
+      min-height: 18px;
+    }
+
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--danger); }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 1024px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        min-height: initial;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="hero">
+      <h1>DeepSeek / Google Banana / Meshy 统一调用页面</h1>
+      <p>
+        所有模型都在同一页面配置与调用。你可以填写真实 API 地址、密钥、模型名与请求体模板；统一输入问题后可单独发送或一键发送全部。
+      </p>
+    </section>
+
+    <section class="global-input">
+      <label for="globalPrompt">统一输入内容（会作为 <code>{{INPUT}}</code> 注入每个模型请求体）</label>
+      <textarea id="globalPrompt" placeholder="请输入你要发送给模型的问题或任务..." style="min-height: 110px;"></textarea>
+      <div class="actions">
+        <button id="sendAllBtn">发送到全部模型</button>
+        <button id="clearBtn" class="secondary">清空全部输出</button>
+      </div>
+      <div class="footer-note">提示：如果浏览器遇到跨域（CORS）限制，请将本页面部署到可发起服务端请求的后端中转环境。</div>
+    </section>
+
+    <section class="grid" id="cardsContainer"></section>
+  </main>
+
+  <script>
+    const modelConfigs = [
+      {
+        id: 'deepseek',
+        title: 'DeepSeek',
+        endpoint: 'https://api.deepseek.com/chat/completions',
+        method: 'POST',
+        model: 'deepseek-chat',
+        authHeader: 'Authorization',
+        authPrefix: 'Bearer ',
+        bodyTemplate: JSON.stringify({
+          model: '{{MODEL}}',
+          messages: [{ role: 'user', content: '{{INPUT}}' }],
+          stream: false
+        }, null, 2)
+      },
+      {
+        id: 'google-banana',
+        title: 'Google Banana',
+        endpoint: '',
+        method: 'POST',
+        model: '',
+        authHeader: 'Authorization',
+        authPrefix: 'Bearer ',
+        bodyTemplate: JSON.stringify({
+          model: '{{MODEL}}',
+          input: '{{INPUT}}'
+        }, null, 2)
+      },
+      {
+        id: 'meshy',
+        title: 'Meshy',
+        endpoint: 'https://api.meshy.ai/openapi/v2/text-to-3d',
+        method: 'POST',
+        model: '',
+        authHeader: 'Authorization',
+        authPrefix: 'Bearer ',
+        bodyTemplate: JSON.stringify({
+          mode: 'preview',
+          prompt: '{{INPUT}}'
+        }, null, 2)
+      }
+    ];
+
+    const cardsContainer = document.getElementById('cardsContainer');
+    const globalPrompt = document.getElementById('globalPrompt');
+
+    function createCard(config) {
+      const card = document.createElement('article');
+      card.className = 'card';
+      card.innerHTML = `
+        <h2>${config.title}</h2>
+
+        <div class="row two-cols">
+          <div>
+            <label>请求方法</label>
+            <select data-field="method">
+              <option value="POST">POST</option>
+              <option value="GET">GET</option>
+              <option value="PUT">PUT</option>
+            </select>
+          </div>
+          <div>
+            <label>模型名（可选）</label>
+            <input data-field="model" type="text" placeholder="例如 deepseek-chat" />
+          </div>
+        </div>
+
+        <div>
+          <label>API 地址</label>
+          <input data-field="endpoint" type="text" placeholder="https://..." />
+        </div>
+
+        <div class="row two-cols">
+          <div>
+            <label>密钥 Header 名</label>
+            <input data-field="authHeader" type="text" placeholder="Authorization" />
+          </div>
+          <div>
+            <label>密钥前缀（可空）</label>
+            <input data-field="authPrefix" type="text" placeholder="Bearer " />
+          </div>
+        </div>
+
+        <div>
+          <label>API Key（仅保存在当前页面内存）</label>
+          <input data-field="apiKey" type="password" placeholder="输入真实 key" autocomplete="off" />
+        </div>
+
+        <div>
+          <label>请求体模板（JSON，支持 {{INPUT}} 和 {{MODEL}} 占位符）</label>
+          <textarea data-field="bodyTemplate"></textarea>
+        </div>
+
+        <div class="actions">
+          <button data-action="send">发送</button>
+          <button data-action="format" class="secondary">JSON 美化</button>
+        </div>
+
+        <div class="status" data-field="status"></div>
+
+        <div>
+          <label>输出结果</label>
+          <textarea class="output" data-field="output" readonly placeholder="响应结果会显示在这里..."></textarea>
+        </div>
+      `;
+
+      const refs = getRefs(card);
+      refs.method.value = config.method;
+      refs.model.value = config.model;
+      refs.endpoint.value = config.endpoint;
+      refs.authHeader.value = config.authHeader;
+      refs.authPrefix.value = config.authPrefix;
+      refs.bodyTemplate.value = config.bodyTemplate;
+
+      card.querySelector('[data-action="send"]').addEventListener('click', () => sendRequest(card));
+      card.querySelector('[data-action="format"]').addEventListener('click', () => formatTemplate(card));
+      return card;
+    }
+
+    function getRefs(card) {
+      return {
+        method: card.querySelector('[data-field="method"]'),
+        model: card.querySelector('[data-field="model"]'),
+        endpoint: card.querySelector('[data-field="endpoint"]'),
+        authHeader: card.querySelector('[data-field="authHeader"]'),
+        authPrefix: card.querySelector('[data-field="authPrefix"]'),
+        apiKey: card.querySelector('[data-field="apiKey"]'),
+        bodyTemplate: card.querySelector('[data-field="bodyTemplate"]'),
+        status: card.querySelector('[data-field="status"]'),
+        output: card.querySelector('[data-field="output"]')
+      };
+    }
+
+    function setStatus(refs, message, type = '') {
+      refs.status.className = `status ${type}`.trim();
+      refs.status.textContent = message;
+    }
+
+    function safeJsonParse(text) {
+      return JSON.parse(text);
+    }
+
+    function fillTemplate(template, input, model) {
+      return template
+        .replaceAll('{{INPUT}}', input)
+        .replaceAll('{{MODEL}}', model || '');
+    }
+
+    async function sendRequest(card) {
+      const refs = getRefs(card);
+      const prompt = globalPrompt.value.trim();
+      const endpoint = refs.endpoint.value.trim();
+      const method = refs.method.value;
+      const model = refs.model.value.trim();
+      const apiKey = refs.apiKey.value;
+      const authHeader = refs.authHeader.value.trim();
+      const authPrefix = refs.authPrefix.value;
+
+      if (!endpoint) {
+        setStatus(refs, '请先填写 API 地址。', 'err');
+        return;
+      }
+
+      if (!prompt) {
+        setStatus(refs, '请先填写统一输入内容。', 'err');
+        return;
+      }
+
+      let body;
+      try {
+        const rawBody = fillTemplate(refs.bodyTemplate.value, prompt, model);
+        body = safeJsonParse(rawBody);
+      } catch (error) {
+        setStatus(refs, `请求体 JSON 无效：${error.message}`, 'err');
+        return;
+      }
+
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+
+      if (apiKey && authHeader) {
+        headers[authHeader] = `${authPrefix || ''}${apiKey}`;
+      }
+
+      setStatus(refs, '请求发送中...', '');
+      refs.output.value = '';
+
+      try {
+        const response = await fetch(endpoint, {
+          method,
+          headers,
+          body: method === 'GET' ? undefined : JSON.stringify(body)
+        });
+
+        const text = await response.text();
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          parsed = text;
+        }
+
+        refs.output.value = typeof parsed === 'string' ? parsed : JSON.stringify(parsed, null, 2);
+
+        if (response.ok) {
+          setStatus(refs, `成功：HTTP ${response.status}`, 'ok');
+        } else {
+          setStatus(refs, `失败：HTTP ${response.status}`, 'err');
+        }
+      } catch (error) {
+        refs.output.value = String(error);
+        setStatus(refs, `请求异常：${error.message}`, 'err');
+      }
+    }
+
+    function formatTemplate(card) {
+      const refs = getRefs(card);
+      try {
+        refs.bodyTemplate.value = JSON.stringify(JSON.parse(refs.bodyTemplate.value), null, 2);
+        setStatus(refs, 'JSON 美化完成。', 'ok');
+      } catch (error) {
+        setStatus(refs, `JSON 格式错误：${error.message}`, 'err');
+      }
+    }
+
+    document.getElementById('sendAllBtn').addEventListener('click', async () => {
+      const cards = [...cardsContainer.querySelectorAll('.card')];
+      for (const card of cards) {
+        await sendRequest(card);
+      }
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      cardsContainer.querySelectorAll('[data-field="output"]').forEach(output => {
+        output.value = '';
+      });
+      cardsContainer.querySelectorAll('[data-field="status"]').forEach(status => {
+        status.className = 'status';
+        status.textContent = '';
+      });
+    });
+
+    modelConfigs.forEach(cfg => cardsContainer.appendChild(createCard(cfg)));
+  </script>
+</body>
+</html>
